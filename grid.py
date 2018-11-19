@@ -15,6 +15,8 @@ grid[opX][opY] = 4
 gridBoard = [[0 for row in range(x)] for col in range(x)]
 board = tk.Canvas(master, width=x*Width, height=x*Width)
 moveCounter = 0
+maxObjectives = 0
+objectiveCounter = 0
 
 gameOver = False
 
@@ -83,6 +85,7 @@ for i in range(x):
             objective = np.random.randint(0, 30)
             if objective == 1:
                 grid[i][j] = 3
+                maxObjectives += 1
 for i in range(x):
     for j in range(x):
         if grid[i][j] == 0:
@@ -111,29 +114,40 @@ def key(event):
     global apX
     global apY
     global moveCounter
+    global objectiveCounter
     kp = event.char
     #smoothMap()
+    updateBoard()
     if kp == 'a':
         if grid[(apX-1)%20][apY] != 2:
             grid[apX][apY] = 0
+            if grid[(apX-1)%x][apY] == 3:
+                objectiveCounter += 1
             apX = (apX - 1)%x
-            grid[apX][apY] = 1
-            moveCounter += 1
-    elif kp == 'd':
-        if grid[(apX+1)%20][apY] != 2:
-            grid[apX][apY] = 0
-            apX = (apX + 1)%x
             grid[apX][apY] = 1
             moveCounter += 1
     elif kp == 'w':
         if grid[apX][(apY-1)%20] != 2:
             grid[apX][apY] = 0
+            if grid[apX][(apY-1)%x] == 3:
+                objectiveCounter += 1
+                print()
             apY = (apY - 1)%x
+            grid[apX][apY] = 1
+            moveCounter += 1
+    elif kp == 'd':
+        if grid[(apX+1)%20][apY] != 2:
+            grid[apX][apY] = 0
+            if grid[(apX+1)%x][apY] == 3:
+                objectiveCounter += 1
+            apX = (apX + 1)%x
             grid[apX][apY] = 1
             moveCounter += 1
     elif kp == 's':
         if grid[apX][(apY+1)%20] != 2:
             grid[apX][apY] = 0
+            if grid[apX][(apY+1)%x] == 3:
+                objectiveCounter += 1
             apY = (apY + 1)%x
             grid[apX][apY] = 1
             moveCounter += 1
@@ -141,14 +155,16 @@ def key(event):
         gameOver()
 
 
+
 def gameOver():
     global gameOver
     gameOver = True
     print(moveCounter)
+    print("Objectives: " + str(objectiveCounter)+ "/" + str(maxObjectives))
 
 def callback(event):
     board.focus_set()
-    print("clicked at", event.x, event.y)
+    #print("clicked at", event.x, event.y)
 
 
 while(1):
