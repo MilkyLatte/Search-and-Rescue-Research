@@ -1,11 +1,15 @@
 import numpy as np
-import keyboard
 import tkinter as tk
 import json
 import time
 import copy
+
 master = tk.Tk()
 master.wm_title("gridWorld")
+x = 20
+Width = 35
+objectiveCounter = 0
+moveCounter = 0
 
 
 def createWorld(x):
@@ -32,6 +36,7 @@ def createWorld(x):
                     grid[i][j] = 3
                     maxObjectives += 1
     return apX, apY, opX, opY, grid, maxObjectives
+
 
 def createBoard():
     gridBoard = [[0 for row in range(x)] for col in range(x)]
@@ -61,6 +66,7 @@ def createBoard():
             elif grid[i][j] == 4:
                 gridBoard[i][j] = board.create_rectangle(i*Width, j*Width, (i+1)*Width, (j+1)*Width, fill="purple", width=1)
     return board, gridBoard
+
 
 def smoothMap(grid):
     gridCopy = grid
@@ -255,8 +261,6 @@ def fullPath():
         posX, posY = objectives[i][0], objectives[i][1]
         if(posX == opX and posY == opY):
             fullMoves.append(5)
-    print("_______________")
-    print(len(fullMoves))
     return fullMoves
 
 
@@ -267,7 +271,6 @@ def machineGameTSM():
             break
         updateBoard()
         if len(instructions) > 0:
-            print("here")
             moveHandler(instructions.pop(0))
         time.sleep(0.1)
         board.pack()
@@ -296,10 +299,7 @@ def getObjectives():
     objectives.append((opX, opY))
     return objectives
 
-x = 20
-Width = 35
-objectiveCounter = 0
-moveCounter = 0
+
 def printMap(m):
     for row in m:
         print(row)
@@ -397,21 +397,18 @@ def minDist(grid, sourceX, sourceY, targetX, targetY):
 def getPath(stack, obX, obY):
     path = []
     currentPosition = stack.pop()
-#    print(currentPosition.row, currentPosition.col)
     while(1):
         currentPosition = stack.pop()
         if currentPosition.row == obX and currentPosition.col == obY:
             break
 
     path.append(currentPosition)
-#    print(currentPosition.row, currentPosition.col)
 
     for i in range(len(stack.stack)):
         e = stack.pop()
         if e.row == currentPosition.parentX and e.col == currentPosition.parentY:
             currentPosition = e
             path.append(e)
-#    print(len(path))
     path.reverse()
     instructions = []
     for i in range(len(path)-1):
@@ -427,14 +424,27 @@ def getPath(stack, obX, obY):
             instructions.append(2)
     return instructions
 
-
+def generateMaps(mapNum):
+    global apX, apY, opX, opY, grid, maxObjectives, board, gridBoard
+    m = []
+    solution = []
+    while len(m) < mapNum:
+        apX, apY, opX, opY, grid, maxObjectives = createWorld(x)
+        try:
+            s = fullPath()
+            m.append(grid)
+            solution.append(s)
+        except Exception:
+            continue
+    return m, solution
 
 
 def main():
     global apX, apY, opX, opY, grid, maxObjectives, board, gridBoard, maps
     maps = loadMaps()
+    print(maps)
     while 1:
-        mapOption = input("To play a new map press n followed by enter, to load a map press l followed by enter\n")
+        mapOption = input("To play a new map press n followed by enter, to load a map press l followed by enter, g to generate new maps\n")
         while 1:
             if mapOption == 'n':
                 apX, apY, opX, opY, grid, maxObjectives = createWorld(x)
@@ -455,8 +465,23 @@ def main():
                         print("try a different index")
                 except Exception:
                     print("invalid input try again")
+            elif mapOption == 'g':
+                while 1:
+                    mapNum = input("how many maps?")
+                    try:
+                        mapNum = int(mapNum)
+                        o, s = generateMaps(mapNum)
+                        print("here")
+                        for j in o:
+                            maps["validMaps"].append(j)
+                        for j in s:
+                            maps["solutions"].append(j)
+                        writeMaps(maps)
+                        print("DONE")
+                        return 0
+                    except Exception:
+                        print("try another number")
         break
-
 
     while 1:
         board.pack()
