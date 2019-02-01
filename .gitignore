@@ -1,0 +1,2 @@
+# ignore data since files are too big
+*.json

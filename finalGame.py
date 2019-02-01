@@ -3,6 +3,7 @@ import tkinter as tk
 import time
 import pandas as pd
 import copy
+import json
 
 
 def smoothMap(grid, x):
@@ -102,6 +103,7 @@ class Game():
     def makeMove(self, move):
         if move == 0:
             pass
+        # Left
         elif move == 1:
             if self.map.grid[(self.map.apX-1)%self.map.size][self.map.apY] != 2:
                 self.map.grid[self.map.apX][self.map.apY] = 0
@@ -110,6 +112,7 @@ class Game():
                 self.map.apX = (self.map.apX - 1)%self.map.size
                 self.map.grid[self.map.apX][self.map.apY] = 1
                 self.moveCounter += 1
+        # Up
         elif move == 2:
             if self.map.grid[self.map.apX][(self.map.apY-1)%self.map.size] != 2:
                 self.map.grid[self.map.apX][self.map.apY] = 0
@@ -118,6 +121,7 @@ class Game():
                 self.map.apY = (self.map.apY - 1)%self.map.size
                 self.map.grid[self.map.apX][self.map.apY] = 1
                 self.moveCounter += 1
+        # Right
         elif move == 3:
             if self.map.grid[(self.map.apX+1)%self.map.size][self.map.apY] != 2:
                 self.map.grid[self.map.apX][self.map.apY] = 0
@@ -126,6 +130,7 @@ class Game():
                 self.map.apX = (self.map.apX + 1)%self.map.size
                 self.map.grid[self.map.apX][self.map.apY] = 1
                 self.moveCounter += 1
+        # Down
         elif move == 4:
             if self.map.grid[self.map.apX][(self.map.apY+1)%self.map.size] != 2:
                 self.map.grid[self.map.apX][self.map.apY] = 0
@@ -302,11 +307,23 @@ def minDist(grid, sourceX, sourceY, targetX, targetY, x):
             visited[p.row][(p.col+1)%x] = True
     return -1, -1
 
-def getPath(stack, obX, obY, x):
+def getPath(stack, obX, obY, x, grid):
+    if stack == -1: return -1
     path = []
     currentPosition = stack.pop()
+
     while(1):
-        currentPosition = stack.pop()
+        try:
+            currentPosition = stack.pop()
+        except Exception:
+            # game = Game()
+            # game.loadGrid(grid.grid)
+            # graphicsHandler = Graphics(35, game.map)
+            # graphicsHandler.createBoard()
+            # graphicsHandler.board.pack()
+            # graphicsHandler.updateBoard()
+            # graphicsHandler.master.update()
+            return -1
         if currentPosition.row == obX and currentPosition.col == obY:
             break
 
@@ -324,11 +341,11 @@ def getPath(stack, obX, obY, x):
             break
         if path[i+1].row == (path[i].row + 1) % x:
             instructions.append(3)
-        if path[i+1].row == (path[i].row - 1) % x:
+        elif path[i+1].row == (path[i].row - 1) % x:
             instructions.append(1)
-        if path[i+1].col == (path[i].col + 1) % x:
+        elif path[i+1].col == (path[i].col + 1) % x:
             instructions.append(4)
-        if path[i+1].col == (path[i].col - 1) % x:
+        elif path[i+1].col == (path[i].col - 1) % x:
             instructions.append(2)
     return instructions
 
@@ -353,23 +370,23 @@ def closestObjective(map):
 def closestMoves(map):
     closest = closestObjective(map)
     distance, s = minDist(map.grid, map.apX, map.apY, closest[0], closest[1], map.size)
-    return getPath(s, closest[0], closest[1], map.size)
+    return getPath(s, closest[0], closest[1], map.size, map)
 
 
-def fullPath(map):
-    fullMoves = []
-    objectives = map.getObjectives()
-    posX, posY = map.apX, map.apY
-    for i in range(len(objectives)):
-        closest = closestObjective(posX, posY, map)
-        distance, s = minDist(map.grid, posX, posY, closest[0], closest[1], map.size)
-        instructions = getPath(s, closest[0], closest[1], map.size)
-        for inst in instructions:
-            fullMoves.append(inst)
-        posX, posY = closest[0], closest[1]
-        if(posX == map.opX and posY == map.opY):
-            fullMoves.append(5)
-    return fullMoves
+# def fullPath(map):
+#     fullMoves = []
+#     objectives = map.getObjectives()
+#     posX, posY = map.apX, map.apY
+#     for i in range(len(objectives)):
+#         closest = closestObjective(posX, posY, map)
+#         distance, s = minDist(map.grid, posX, posY, closest[0], closest[1], map.size)
+#         instructions = getPath(s, closest[0], closest[1], map.size)
+#         for inst in instructions:
+#             fullMoves.append(inst)
+#         posX, posY = closest[0], closest[1]
+#         if(posX == map.opX and posY == map.opY):
+#             fullMoves.append(5)
+#     return fullMoves
 
 def printMap(m):
     for row in m:
@@ -381,56 +398,72 @@ def loadMaps():
     return copy.deepcopy(a)
 
 def writeMaps(maps):
-    with open('maps.json', 'w') as f:
+    with open('maps1.json', 'w') as f:
         a = json.dump(maps, f, separators=(',', ': '), indent=4)
 
 def reshape(grid):
     newGrid = np.array(grid)
-    newGrid = newGrid.reshape(400)
-    return newGrid
+    newGrid = newGrid.reshape(25)
+    return np.ndarray.tolist(newGrid)
+
+def isValidMap(map):
+    for i in map.getObjectives():
+        d, s = minDist(map.grid, map.apX, map.apY, i[0], i[1], map.size)
+        if s == -1:
+            return False
+    return True
 
 def generateMaps(mapNum):
-    maps = []
-    move = []
-    while len(maps) < mapNum:
+    maps = {
+        "maps":[],
+        "moves":[]
+    }
+    print(maps)
+    gameCounter = 0
+    while gameCounter < mapNum:
         game = Game()
-        game.createGrid(20)
-        try:
-            while len(game.map.getObjectives()) > 0:
-                for i in closestMoves(game.map):
-                    move.append(i)
-                    maps.append(reshape(game.map.grid))
-                    game.makeMove(i)
-                    if (game.map.opX == game.map.apX and game.map.opY == game.map.apY):
-                        break
+        game.createGrid(5)
+        if not isValidMap(game.map):
+            continue
+        while len(game.map.getObjectives()) > 0:
+            closest = closestMoves(game.map)
+            if closest == -1: break
+            for i in closest:
+                maps["moves"].append(i)
+
+                maps["maps"].append(list(reshape(game.map.grid)))
+                game.makeMove(i)
                 if (game.map.opX == game.map.apX and game.map.opY == game.map.apY):
                     break
-        except Exception:
-            continue
-    return maps, move
+            if (game.map.opX == game.map.apX and game.map.opY == game.map.apY):
+                gameCounter+=1
+                break
+
+    writeMaps(maps)
+    return maps
 
 
 def main():
-    maps, moves = generateMaps(1)
-    print(moves)
+    maps = generateMaps(1000)
     newGame = Game()
-    newGame.loadGrid(maps[0].reshape(20,20))
+    newGame.loadGrid(np.array(maps["maps"][0]).reshape(5,5))
 
     # maps = loadMaps()
     # newGame = Game()
     # newGame.createGrid(20)
-    graphicsHandler = Graphics(35, newGame.map)
+    graphicsHandler = Graphics(25, newGame.map)
     graphicsHandler.createBoard()
+    printMap(newGame.map.grid)
     #
     #
     while 1:
         graphicsHandler.board.pack()
         for i in closestMoves(newGame.map):
-            newGame.makeMove(i)
-            print(i)
-            time.sleep(0.3)
             graphicsHandler.updateBoard()
             graphicsHandler.master.update()
+            newGame.makeMove(i)
+            print(i)
+            time.sleep(60)
         if (newGame.map.opX == newGame.map.apX and newGame.map.opY == newGame.map.apY):
             break
 
