@@ -1,2 +1,6 @@
 # ignore data since files are too big
 *.json
+*.pckl
+*.h5
+*checkpoint.ipynb
+*.pyc

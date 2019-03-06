@@ -12,12 +12,12 @@ class Handler():
         self.shape = shape
         self.reset()
 
-
     def reset(self):
         while 1:
             self.game = fg.Game()
-            self.game.mazeLevelOne(self.shape)
-            if fg.isValidMap(self.game.map): break
+            self.game.testMaze(self.shape)
+            if fg.isValidMap(self.game.map):
+                break
 
         if self.graphics:
             self.graphicsHandler.map = self.game.map
@@ -39,44 +39,45 @@ class Handler():
     def step(self, move):
         preMove = fg.closestMoves(self.game.map)
         preMoveObjectives = self.game.objectiveCounter
-        self.game.makeMove(move)
+        previous = self.game.makeMove(move)
 
         if self.graphics: self.graphicsUpdate()
 
         postMove = fg.closestMoves(self.game.map)
         postMoveObjectives = self.game.objectiveCounter
 
+        accumulator = 0
+        if previous: accumulator = -0.1
+
+
         if len(postMove) == 0:
-            return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), 10, True
+            return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), 1, True
 
-        if (self.game.moveCounter > 200):
-            return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), -10, True
-
-        if (len(preMove) < len(postMove)):
-            return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), len(postMove), False
-
-        if (postMoveObjectives > preMoveObjectives):
-            return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), 5, False
-
-        if len(preMove) > len(postMove):
-            return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), -len(postMove), False
+        if (self.game.moveCounter > 500):
+            return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), -1, True
 
         if len(preMove) == len(postMove):
             return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), -1, False
 
+        if (postMoveObjectives > preMoveObjectives):
+            return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), 1, False
+
+        if (len(preMove) < len(postMove)):
+            return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), -1/len(preMove) + accumulator, False
+
+        if len(preMove) > len(postMove):
+            return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), 1/len(postMove), False
+
 #
-# example = Handler()
-# example.reset()
-# example.render()
-# games = 0
-# while 1:
-#     try:
-#         move = fg.closestMoves(example.game.map)[0]
-#     except Exception:
-#         example.render()
-#         time.sleep(5)
-#         break
-#     _, _, done = example.step(move)
-#     if done:
-#         games += 1
-#         example.reset()
+# done = False
+# game = Handler(20)
+# game.render()
+# moves = fg.closestMoves(game.game.map)
+#
+#
+# while not done:
+#     moves = [1,1,1,1,1,1,1]
+#
+#     time.sleep(2)
+#     _, reward, done = game.step(moves.pop(1))
+#     print("REWARD: {}".format(reward))
