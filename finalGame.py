@@ -79,34 +79,21 @@ class Game():
         self.objectiveCounter = 0
         self.map = []
 
-    def testMaze(self, gridSize):
+    def testMaze(self, gridSize, objNum):
         grid = [[SPACE for row in range(gridSize)] for col in range(gridSize)]
         v = 2
         apX = np.random.randint(v, gridSize-(v+1))
         apY = np.random.randint(v, gridSize-(v+1))
 
-        opX = 0
-        opY = 0
-        while 1:
-            x = np.random.randint(v, gridSize-(v+1))
-            y = np.random.randint(v, gridSize-(v+1))
-            if x != apX and y != apY:
-                opX = x
-                opY = y
-                break
-        coinX = 0
-        coinY = 0
-        while 1:
-            x = np.random.randint(v, gridSize-(v+1))
-            y = np.random.randint(v, gridSize-(v+1))
-            if x != apX and y != apY and x != opX and y != opY:
-                coinX = x
-                coinY = y
-                break
+        for i in range(objNum):
+            while 1:
+                x = np.random.randint(v, gridSize-(v+1))
+                y = np.random.randint(v, gridSize-(v+1))
+                if x != apX and y != apY:
+                    grid[x][y] = COIN
+                    break
 
         grid[apX][apY] = AGENT
-        grid[opX][opY] = OBJECTIVE
-        grid[coinX][coinY] = COIN
 
         for row in range(len(grid)):
             for col in range(len(grid)):
@@ -115,12 +102,7 @@ class Game():
                 if col <= v-1 or col >= gridSize-v:
                     grid[row][col] = WALL
 
-        self.map = Grid(apX, apY, opX, opY, grid, 1, gridSize, [(apX, apY)])
-
-
-
-
-
+        self.map = Grid(apX, apY, grid, 1, gridSize, [(apX, apY)])
 
     def mazeLevelOne(self, gridSize):
         grid = [[0 for row in range(gridSize)] for col in range(gridSize)]
@@ -181,41 +163,31 @@ class Game():
                 break
         while 1:
             apX, apY = np.random.randint(0, gridSize), np.random.randint(0, gridSize)
-            opX, opY = np.random.randint(0, gridSize), np.random.randint(0, gridSize)
-            if grid[apX][apY] != WALL and grid[opX][opY] != WALL and apX != opX and apY != opY:
+            if grid[apX][apY] != WALL:
                 break
         grid[apX][apY] = AGENT
-        grid[opX][opY] = OBJECTIVE
         maxObjectives = 0
         for i in range(gridSize):
             for j in range(gridSize):
                 if (i != apX and j != apY and grid[i][j] != WALL):
                     objective = np.random.randint(0, 30)
                     if objective == 1:
-                        if grid[i][j] == WALL: continue
+                        if grid[i][j] == WALL:
+                            continue
                         grid[i][j] = COIN
                         maxObjectives += 1
-        self.map = Grid(apX, apY, opX, opY, grid, maxObjectives, gridSize, [(apX, apY)])
+        self.map = Grid(apX, apY, grid, maxObjectives, gridSize, [(apX, apY)])
 
     def createGrid(self, gridSize):
         grid = [[SPACE for row in range(gridSize)] for col in range(gridSize)]
         apX = np.random.randint(1, gridSize-2)
         apY = np.random.randint(1, gridSize-2)
-        opX = 0
-        opY = 0
-        while 1:
-            x = np.random.randint(1, gridSize-2)
-            y = np.random.randint(1, gridSize-2)
-            if x != apX and y != apY:
-                opX = x
-                opY = y
-                break
+
         grid[apX][apY] = AGENT
-        grid[opX][opY] = OBJECTIVE
         maxObjectives = 0
         for i in range(gridSize):
             for j in range(gridSize):
-                if (i != apX and j != apY and i != opX and j != opY):
+                if (i != apX and j != apY):
                     # CHANGE THIS TO GENERATE MAPS WITH MORE WALLS
                     randomMap = np.random.randint(0, 3)
                     if randomMap == 1:
@@ -224,7 +196,7 @@ class Game():
             grid = smoothMap(grid, gridSize)
         for i in range(gridSize):
             for j in range(gridSize):
-                if (i != apX and j != apY and grid[i][j] != WALL and i != opX and j != opY):
+                if (i != apX and j != apY and grid[i][j] != WALL):
                     objective = np.random.randint(0, 30)
                     if objective < 3:
                         grid[i][j] = COIN
@@ -235,7 +207,7 @@ class Game():
                     grid[row][col] = WALL
                 if col == 0 or col == gridSize-1:
                     grid[row][col] = WALL
-        self.map = Grid(apX, apY, opX, opY, grid, maxObjectives, gridSize, [(apX, apY)])
+        self.map = Grid(apX, apY, grid, maxObjectives, gridSize, [(apX, apY)])
 
     def loadGrid(self, grid):
         apX, apY, opX, opY, maxObjectives = 0, 0, 0, 0, 0
@@ -244,17 +216,12 @@ class Game():
                 if grid[row][col] == AGENT:
                     apX = row
                     apY = col
-                elif grid[row][col] == OBJECTIVE:
-                    opX = row
-                    opY = col
                 elif grid[row][col] == COIN:
                     maxObjectives += 1
-        self.map = Grid(apX, apY, opX, opY, grid, maxObjectives, len(grid), [(apX, apY)])
+        self.map = Grid(apX, apY, grid, maxObjectives, len(grid), [(apX, apY)])
 
 
     def appendToTrail(self):
-        if self.map.trail[len(self.map.trail)-1] == (self.map.opX, self.map.opY):
-            self.map.grid[self.map.opX][self.map.opY] = OBJECTIVE
         self.map.grid[self.map.trail[len(self.map.trail)-1][0]][self.map.trail[len(self.map.trail)-1][1]] = SPACE
         if len(self.map.trail) == 5:
             self.map.trail.pop(len(self.map.trail)-1)
@@ -329,13 +296,11 @@ class Game():
 
 
 class Grid():
-    def __init__(self, apX, apY, opX, opY, grid, maxObjectives, size, trail):
+    def __init__(self, apX, apY, grid, maxObjectives, size, trail):
         self.size = size
         self.grid = grid
         self.apX = apX
         self.apY = apY
-        self.opX = opX
-        self.opY = opY
         self.maxObjectives = maxObjectives
         self.fullPath = []
         self.trail = trail
@@ -346,7 +311,6 @@ class Grid():
             for col in range(self.size):
                 if self.grid[row][col] == COIN:
                     objectives.append((row, col))
-        objectives.append((self.opX, self.opY))
         return objectives
 
 
@@ -369,12 +333,8 @@ class Graphics():
                     self.gridBoard[i][j] = self.board.create_rectangle(i*self.width, j*self.width, (i+1)*self.width, (j+1)*self.width, fill="black", width=1)
                 elif self.map.grid[i][j] == COIN:
                     self.gridBoard[i][j] = self.board.create_rectangle(i*self.width, j*self.width, (i+1)*self.width, (j+1)*self.width, fill="yellow", width=1)
-                elif self.map.grid[i][j] == OBJECTIVE:
-                    self.gridBoard[i][j] = self.board.create_rectangle(i*self.width, j*self.width, (i+1)*self.width, (j+1)*self.width, fill="purple", width=1)
 
     def updateBoard(self):
-        if self.map.apX != self.map.opX and self.map.apY != self.map.opY:
-            self.map.grid[self.map.opX][self.map.opY] = OBJECTIVE
         for i in range(self.map.size):
             for j in range(self.map.size):
                 if self.map.grid[i][j] == SPACE:
@@ -383,8 +343,6 @@ class Graphics():
                     self.board.itemconfig(self.gridBoard[i][j], fill="green")
                 elif self.map.grid[i][j] == TRAIL:
                     self.board.itemconfig(self.gridBoard[i][j], fill="blue")
-                elif self.map.grid[i][j] == OBJECTIVE:
-                    self.board.itemconfig(self.gridBoard[i][j], fill="purple")
                 elif self.map.grid[i][j] == WALL:
                     self.board.itemconfig(self.gridBoard[i][j], fill="black")
                 elif self.map.grid[i][j] == COIN:
@@ -532,7 +490,7 @@ def closestObjective(map):
     objectives = map.getObjectives()
     closest = None
     dis = 9999
-    for i in range(len(objectives)-1):
+    for i in range(len(objectives)):
         distance, s = minDist(map.grid, map.apX, map.apY, objectives[i][0], objectives[i][1], map.size)
         if closest == None:
             closest = objectives[i]
@@ -541,12 +499,14 @@ def closestObjective(map):
             if distance < dis:
                 closest = objectives[i]
                 dis = distance
-    if closest == None:
-        return objectives[len(objectives)-1]
+    # if closest == None:
+    #     return objectives[len(objectives)-1]
     return closest
 
 def closestMoves(map):
     closest = closestObjective(map)
+    if closest == None:
+        return []
     distance, s = minDist(map.grid, map.apX, map.apY, closest[0], closest[1], map.size)
     return getPath(s, closest[0], closest[1], map.size, map)
 
@@ -601,9 +561,9 @@ def generateMaps(mapNum):
                 maps["moves"].append(i)
                 maps["maps"].append(list(reshape(game.map.grid)))
                 game.makeMove(i)
-                if (game.map.opX == game.map.apX and game.map.opY == game.map.apY):
+                if (len(game.map.getObjectives() == 0)):
                     break
-            if (game.map.opX == game.map.apX and game.map.opY == game.map.apY):
+            if (len(game.map.getObjectives() == 0)):
                 gameCounter += 1
                 break
 

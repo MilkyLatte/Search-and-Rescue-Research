@@ -10,14 +10,14 @@ import time
 import pickle
 
 GAMMA = 0.9
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 
 MEMORY_SIZE = 12000
 BATCH_SIZE = 32
 
 EXPLORATION_MAX = 1.0
 EXPLORATION_MIN = 0.1
-EXPLORATION_DECAY = 0.999
+EXPLORATION_DECAY = 0.9995
 
 
 class DQN:
@@ -134,9 +134,9 @@ def trainMaze(loadedModel=None, memory=None):
 
 
 if __name__ == "__main__":
-    f = open('models/memory/stage1.pckl', 'rb')
+    f = open('models/memory/stage1Mem.pckl', 'rb')
     memory = (pickle.load(f))
     f.close()
-    model = load_model('models/stage1.h5')
+    model = load_model('models/stage1Model.h5')
     trainMaze(model, memory)
     # trainMaze()

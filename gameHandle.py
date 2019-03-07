@@ -15,7 +15,7 @@ class Handler():
     def reset(self):
         while 1:
             self.game = fg.Game()
-            self.game.testMaze(self.shape)
+            self.game.testMaze(self.shape, 2)
             if fg.isValidMap(self.game.map):
                 break
 
@@ -26,7 +26,7 @@ class Handler():
 
     def render(self):
         self.graphics = True
-        self.graphicsHandler = fg.Graphics(25, self.game.map)
+        self.graphicsHandler = fg.Graphics(50, self.game.map)
         self.graphicsHandler.createBoard()
         self.graphicsHandler.board.pack()
         self.graphicsHandler.master.update()
@@ -68,7 +68,7 @@ class Handler():
         if len(preMove) > len(postMove):
             return np.array(self.game.map.grid).reshape(-1, self.shape, self.shape, 1), 1/len(postMove), False
 
-#
+
 # done = False
 # game = Handler(20)
 # game.render()
@@ -76,8 +76,7 @@ class Handler():
 #
 #
 # while not done:
-#     moves = [1,1,1,1,1,1,1]
-#
-#     time.sleep(2)
-#     _, reward, done = game.step(moves.pop(1))
+#     moves = fg.closestMoves(game.game.map)
+#     time.sleep(0.2)
+#     _, reward, done = game.step(moves.pop(0))
 #     print("REWARD: {}".format(reward))
