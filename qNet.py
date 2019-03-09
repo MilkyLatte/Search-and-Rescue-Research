@@ -41,9 +41,10 @@ class DQN:
             }
         if loadedModel==None:
             self.model = Sequential()
-            self.model.add(Conv2D(64, 3, strides=2, input_shape=(shape, shape, 1), activation="relu", padding="same"))
-            self.model.add(Conv2D(32, 4, strides=2, activation="relu", padding="same"))
-            self.model.add(Conv2D(16, 8, strides=2, activation="relu", padding="same"))
+            self.model.add(Conv2D(32, 8, strides=2, input_shape=(shape, shape, 1), activation="relu", padding="same"))
+            self.model.add(Conv2D(64, 4, strides=2, activation="relu", padding="same"))
+            self.model.add(Conv2D(64, 3, strides=2, activation="relu", padding="same"))
+            self.model.add(Conv2D(128, 3, strides=2, activation="relu", padding="same"))
             self.model.add(Flatten())
             self.model.add(Dense(256, activation='relu'))
             self.model.add(Dense(self.action_space))
@@ -55,7 +56,7 @@ class DQN:
 
 
     def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+        self.memory.append((np.array(state).reshape(-1, self.shape, self.shape, 1), action, reward, np.array(next_state).reshape(-1, self.shape, self.shape, 1), done))
 
     def act(self, state):
         if np.random.rand() < self.exploration_rate:
@@ -80,7 +81,6 @@ class DQN:
             q_values = self.model.predict(state)
             q_values[0][action] = q_update
             hist = self.model.fit(state, q_values, verbose=0)
-            self.history['acc'].append(hist.history['acc'][0])
             self.history['loss'].append(hist.history['loss'][0])
             self.rounds += 1
             if self.rounds % 50000 == 0:
@@ -98,14 +98,15 @@ class DQN:
 
 
 def trainMaze(loadedModel=None, memory=None):
+    size = 12
 
-    env = gg.Handler(12)
+    env = gg.Handler(size)
     action_space = 4
 
     if load_model==None:
-        dqn_solver = DQN(action_space, 12)
+        dqn_solver = DQN(action_space, size*2+1)
     else:
-        dqn_solver = DQN(action_space, 12, loadedModel, memory)
+        dqn_solver = DQN(action_space, size*2+1, loadedModel, memory)
 
     env.render()
     run = 0
@@ -122,9 +123,10 @@ def trainMaze(loadedModel=None, memory=None):
             dqn_solver.remember(state, action, reward, state_next, terminal)
             state = state_next
             if terminal:
+                dqn_solver.history["acc"].append(env.correctMoves/env.totalMoves)
                 dqn_solver.history["score"].append(step)
                 dqn_solver.history["moves"].append(env.game.moveCounter)
-                print("Run: " + str(run) + ", exploration: " + str(dqn_solver.exploration_rate) + ", score: " + str(step) + ", moves: " + str(env.game.moveCounter))
+                print("Run: " + str(run) + ", exploration: " + str(dqn_solver.exploration_rate) + ", score: " + str(step) + ", accuracy: " + str(env.correctMoves/env.totalMoves))
 
             dqn_solver.experience_replay()
 
@@ -138,5 +140,5 @@ if __name__ == "__main__":
     memory = (pickle.load(f))
     f.close()
     model = load_model('models/stage1Model.h5')
-    trainMaze(model, memory)
-    # trainMaze()
+    # trainMaze(model, memory)
+    trainMaze()

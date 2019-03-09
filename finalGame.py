@@ -5,12 +5,11 @@ import pandas as pd
 import copy
 import json
 
-
 WALL = 0
 COIN = 1
 OBJECTIVE = 0.8
 AGENT = 0.5
-SPACE = 0.7
+SPACE = 0.6
 TRAIL = 0.3
 
 def checkerPathern(gridSize):
@@ -81,7 +80,7 @@ class Game():
 
     def testMaze(self, gridSize, objNum):
         grid = [[SPACE for row in range(gridSize)] for col in range(gridSize)]
-        v = 2
+        v = 1
         apX = np.random.randint(v, gridSize-(v+1))
         apY = np.random.randint(v, gridSize-(v+1))
 
@@ -178,7 +177,7 @@ class Game():
                         maxObjectives += 1
         self.map = Grid(apX, apY, grid, maxObjectives, gridSize, [(apX, apY)])
 
-    def createGrid(self, gridSize):
+    def createGrid(self, gridSize, objNum):
         grid = [[SPACE for row in range(gridSize)] for col in range(gridSize)]
         apX = np.random.randint(1, gridSize-2)
         apY = np.random.randint(1, gridSize-2)
@@ -194,13 +193,14 @@ class Game():
                         grid[i][j] = WALL
         for i in range(0):
             grid = smoothMap(grid, gridSize)
-        for i in range(gridSize):
-            for j in range(gridSize):
-                if (i != apX and j != apY and grid[i][j] != WALL):
-                    objective = np.random.randint(0, 30)
-                    if objective < 3:
-                        grid[i][j] = COIN
-                        maxObjectives += 1
+        for i in range(objNum):
+            while 1:
+                x = np.random.randint(1, gridSize-1)
+                y = np.random.randint(1, gridSize-1)
+                if x != apX and y != apY:
+                    grid[x][y] = COIN
+                    maxObjectives += 1
+                    break
         for row in range(len(grid)):
             for col in range(len(grid)):
                 if row == 0 or row == gridSize-1:
@@ -223,7 +223,7 @@ class Game():
 
     def appendToTrail(self):
         self.map.grid[self.map.trail[len(self.map.trail)-1][0]][self.map.trail[len(self.map.trail)-1][1]] = SPACE
-        if len(self.map.trail) == 5:
+        if len(self.map.trail) == 100:
             self.map.trail.pop(len(self.map.trail)-1)
             self.map.trail.insert(0, (self.map.apX, self.map.apY))
         else:
@@ -232,7 +232,8 @@ class Game():
 
 
     def updateTrail(self):
-        for i in range(len(self.map.trail)):
+        self.map.grid[self.map.trail[0][0]][self.map.trail[0][1]] = AGENT
+        for i in range(1, len(self.map.trail)):
             if self.map.grid[self.map.trail[i][0]][self.map.trail[i][1]] == AGENT:
                 continue
             self.map.grid[self.map.trail[i][0]][self.map.trail[i][1]] = TRAIL
@@ -312,6 +313,25 @@ class Grid():
                 if self.grid[row][col] == COIN:
                     objectives.append((row, col))
         return objectives
+
+    def getCentricPosition(self):
+        centerX = self.size - self.apX
+        centerY = self.size - self.apY
+
+        padded = self.size * 2 + 1
+
+        grid = [[WALL for row in range(padded)] for col in range(padded)]
+
+        for row in range(self.size):
+            for col in range(self.size):
+                grid[row + centerX][col + centerY] = self.grid[row][col]
+
+
+        return Grid(self.size, self.size, grid, 0, len(grid), [(self.size, self.size)])
+
+
+
+
 
 
 class Graphics():
