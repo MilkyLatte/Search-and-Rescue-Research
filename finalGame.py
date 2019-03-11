@@ -223,7 +223,7 @@ class Game():
 
     def appendToTrail(self):
         self.map.grid[self.map.trail[len(self.map.trail)-1][0]][self.map.trail[len(self.map.trail)-1][1]] = SPACE
-        if len(self.map.trail) == 100:
+        if len(self.map.trail) == 400:
             self.map.trail.pop(len(self.map.trail)-1)
             self.map.trail.insert(0, (self.map.apX, self.map.apY))
         else:

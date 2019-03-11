@@ -5,20 +5,33 @@ from keras.models import Sequential, load_model
 from keras.layers import Dense, Conv2D, Flatten
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
+from keras import backend as K
 import random
 import time
 import pickle
+import copy
+
 
 GAMMA = 0.9
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.00025
 
-MEMORY_SIZE = 12000
+
+MEMORY_SIZE = 40000
 BATCH_SIZE = 32
 
 EXPLORATION_MAX = 1.0
 EXPLORATION_MIN = 0.1
-EXPLORATION_DECAY = 0.9995
+EXPLORATION_DECAY = 0.9999
 
+def huber_loss(a, b, in_keras=True):
+    error = a - b
+    quadratic_term = error*error / 2
+    linear_term = abs(error) - 1/2
+    use_linear_term = (abs(error) > 1.0)
+    if in_keras:
+        # Keras won't let us multiply floats by booleans, so we explicitly cast the booleans to floats
+        use_linear_term = K.cast(use_linear_term, 'float32')
+    return use_linear_term * linear_term + (1-use_linear_term) * quadratic_term
 
 class DQN:
     def __init__(self, action_space, shape, loadedModel=None, memory=None):
@@ -26,7 +39,6 @@ class DQN:
 
         self.action_space = action_space
         self.memory = deque(maxlen=MEMORY_SIZE)
-        print(type(self.memory))
 
         self.shape = shape
         self.tensorboard = TensorBoard(log_dir="logs/{}".format(time.time()))
@@ -39,20 +51,38 @@ class DQN:
             'score': [],
             'moves': []
             }
+        huber_loss = self.huber_loss
         if loadedModel==None:
             self.model = Sequential()
-            self.model.add(Conv2D(32, 8, strides=2, input_shape=(shape, shape, 1), activation="relu", padding="same"))
-            self.model.add(Conv2D(64, 4, strides=2, activation="relu", padding="same"))
-            self.model.add(Conv2D(64, 3, strides=2, activation="relu", padding="same"))
-            self.model.add(Conv2D(128, 3, strides=2, activation="relu", padding="same"))
+            self.model.add(Conv2D(64, 8, strides=2, input_shape=(shape, shape, 1), activation="relu", padding="same"))
+            self.model.add(Conv2D(128, 4, strides=2, activation="relu", padding="same"))
+            self.model.add(Conv2D(128, 4, strides=2, activation="relu", padding="same"))
+            self.model.add(Conv2D(256, 3, strides=2, activation="relu", padding="same"))
             self.model.add(Flatten())
-            self.model.add(Dense(256, activation='relu'))
+            self.model.add(Dense(512, activation='relu'))
             self.model.add(Dense(self.action_space))
-            self.model.compile(loss="mse", optimizer=Adam(lr=LEARNING_RATE), metrics=["accuracy"])
+            self.model.compile(loss=huber_loss, optimizer=Adam(lr=LEARNING_RATE), metrics=["accuracy"])
         else:
             self.memory = memory
             self.exploration_rate = 0.1
             self.model = loadedModel
+        
+        self.modelCopy = self.copy_model(self.model)
+    
+    def copy_model(self, model):
+        """Returns a copy of a keras model."""
+        model.save('tmp_model')
+        return load_model('tmp_model', custom_objects={'huber_loss': self.huber_loss})
+    
+    def huber_loss(self, a, b, in_keras=True):
+        error = a - b
+        quadratic_term = error * error / 2
+        linear_term = abs(error) - 1/2
+        use_linear_term = (abs(error) > 1.0)
+        if in_keras:
+            use_linear_term = K.cast(use_linear_term, 'float32')
+        return use_linear_term * linear_term + (1-use_linear_term) * quadratic_term
+
 
 
     def remember(self, state, action, reward, next_state, done):
@@ -63,7 +93,7 @@ class DQN:
             return random.randrange(self.action_space)
 
         state = np.array(state).reshape(-1, self.shape, self.shape, 1)
-        q_values = self.model.predict(state)
+        q_values = self.modelCopy.predict(state)
         return np.argmax(q_values[0])
 
 
@@ -75,15 +105,16 @@ class DQN:
             q_update = reward
             if not done:
                 state_next = np.array(state_next).reshape(-1, self.shape, self.shape, 1)
-                q_update = (reward + GAMMA * np.amax(self.model.predict(state_next)[0]))
+                q_update = (reward + GAMMA * np.amax(self.modelCopy.predict(state_next)[0]))
                 self.history['qval'].append(q_update)
             state = np.array(state).reshape(-1, self.shape, self.shape, 1)
-            q_values = self.model.predict(state)
+            q_values = self.modelCopy.predict(state)
             q_values[0][action] = q_update
             hist = self.model.fit(state, q_values, verbose=0)
             self.history['loss'].append(hist.history['loss'][0])
             self.rounds += 1
             if self.rounds % 50000 == 0:
+                self.modelCopy = self.copy_model(self.model)
                 print("ROUNDS {}".format(self.rounds))
                 print("DUMPING HISTORY AND MEMORY")
                 f = open('history.pckl', 'wb')
@@ -108,7 +139,7 @@ def trainMaze(loadedModel=None, memory=None):
     else:
         dqn_solver = DQN(action_space, size*2+1, loadedModel, memory)
 
-    env.render()
+    # env.render()
     run = 0
     while True:
         run += 1
@@ -136,9 +167,9 @@ def trainMaze(loadedModel=None, memory=None):
 
 
 if __name__ == "__main__":
-    f = open('models/memory/stage1Mem.pckl', 'rb')
-    memory = (pickle.load(f))
-    f.close()
-    model = load_model('models/stage1Model.h5')
+    # f = open('memory.pckl', 'rb')
+    # memory = (pickle.load(f))
+    # f.close()
+    # model = load_model('my_model.h5', custom_objects={'huber_loss': huber_loss})
     # trainMaze(model, memory)
     trainMaze()

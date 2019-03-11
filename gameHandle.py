@@ -22,7 +22,7 @@ class Handler():
         self.correctMoves = 0
         while 1:
             self.game = fg.Game()
-            self.game.testMaze(self.shape, 8)
+            self.game.testMaze(self.shape, 18)
             self.paddedMap = self.game.map.getCentricPosition()
             if fg.isValidMap(self.game.map):
                 break
@@ -34,7 +34,7 @@ class Handler():
 
     def render(self):
         self.graphics = True
-        self.graphicsHandler = fg.Graphics(35, self.paddedMap)
+        self.graphicsHandler = fg.Graphics(15, self.paddedMap)
         self.graphicsHandler.createBoard()
         self.graphicsHandler.board.pack()
         self.graphicsHandler.master.update()
