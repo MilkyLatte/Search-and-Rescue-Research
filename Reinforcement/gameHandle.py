@@ -22,7 +22,7 @@ class Handler():
         self.correctMoves = 0
         while 1:
             self.game = fg.Game()
-            self.game.testMaze(self.shape, 18)
+            self.game.mazeLevelOne(self.shape, 7)
             self.paddedMap = self.game.map.getCentricPosition()
             if fg.isValidMap(self.game.map):
                 break
@@ -34,7 +34,7 @@ class Handler():
 
     def render(self):
         self.graphics = True
-        self.graphicsHandler = fg.Graphics(15, self.paddedMap)
+        self.graphicsHandler = fg.Graphics(35, self.paddedMap)
         self.graphicsHandler.createBoard()
         self.graphicsHandler.board.pack()
         self.graphicsHandler.master.update()
@@ -66,7 +66,7 @@ class Handler():
             self.correctMoves += 1
             return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), 1, True
 
-        if (self.moveEpisode > 50):
+        if (self.moveEpisode > 70):
             return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), 0, True
 
         if len(preMove) == len(postMove):
@@ -77,31 +77,30 @@ class Handler():
             self.moveEpisode = 0
             return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), 1, False
 
+        if len(preMove) > len(postMove):
+            self.correctMoves += 1
+            return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), 1/len(postMove), False
+
         if previous:
             return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), -0.5, False
 
         if (len(preMove) < len(postMove)):
             return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), -1/len(preMove), False
 
-        if len(preMove) > len(postMove):
-            self.correctMoves += 1
-            return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), 1/len(postMove), False
 
-#
 # done = False
 # game = Handler(12)
 # game.render()
 # moves = fg.closestMoves(game.game.map)
-#
-#
+
+
 # while 1:
-#     while 1:
-#         pass
-#     if game.game.map.grid[game.game.map.apX][game.game.map.apY] != 0.5:
-#         print("HELP!")
-#         while 1:
-#             pass
 #     moves = fg.closestMoves(game.game.map)
-#     time.sleep(0.05)
+#     if len(moves) == 0:
+#         game.reset()
+#         continue
 #     _, reward, done = game.step(moves.pop(0))
-#     print("REWARD: {}".format(reward))
+#     if done:
+#         print("TSP SOLVER: {}, FINAL SOLVE: {}".format(game.game.minMoves, game.totalMoves))
+#         game.reset()
+#         continue

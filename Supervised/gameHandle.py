@@ -22,7 +22,7 @@ class Handler():
         self.correctMoves = 0
         while 1:
             self.game = fg.Game()
-            self.game.mazeLevelOne(self.shape)
+            self.game.mazeLevelOne(self.shape, 7)
             self.paddedMap = self.game.map.getCentricPosition()
             if fg.isValidMap(self.game.map):
                 break

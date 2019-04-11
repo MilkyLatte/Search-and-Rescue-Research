@@ -25,11 +25,11 @@ class SupervisedNet:
         
         self.model = Sequential()
         self.model.add(Conv2D(32, 3, strides=1, input_shape=(INPUT_SIZE, INPUT_SIZE, 1), activation="relu", padding="same"))
-        self.model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding="same"))
+        # self.model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding="same"))
         self.model.add(Conv2D(64, 3, strides=1, activation="relu", padding="same"))
-        self.model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding="same"))
+        # self.model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding="same"))
         self.model.add(Conv2D(128, 3, strides=1, activation="relu", padding="same"))
-        self.model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding="same"))
+        # self.model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding="same"))
         self.model.add(Flatten())
         self.model.add(Dense(256, activation="relu"))
         self.model.add(Dense(self.action_space, activation='softmax'))
@@ -60,7 +60,8 @@ def prepareData():
 
 
 def playGame(games):
-    model = load_model('models/12x12.h5')
+    model = load_model('models/12x12TSPLevel2.h5')
+    model.summary()
     game = gg.Handler(12)
     game.render()
     
@@ -70,6 +71,7 @@ def playGame(games):
         terminal = False
         state = game.reset()
         while not terminal:
+            time.sleep(0.3)
             move = np.argmax(model.predict(state))
             state, _, terminal = game.step(move)
         accuracy += game.correctMoves/game.totalMoves
@@ -109,18 +111,18 @@ def trainModel():
 
         if (i % 10 == 0):
             print("ITERATION: {}".format(i))
-            f = open('train/12x12.pckl', 'wb')
+            f = open('train/12x12TSPLevel2.pckl', 'wb')
             pickle.dump(trainHistory, f)
             f.close()
-            f1 = open('test/12x12.pckl', 'wb')
+            f1 = open('test/12x12TSPLevel2.pckl', 'wb')
             pickle.dump(testHistory, f1)
             f1.close()
-    network.model.save('models/12x12.h5')
+    network.model.save('models/12x12TSPLevel2.h5')
 
 
 if __name__ == "__main__":
     # trainModel()
-    playGame(1000)
+    playGame(100)
 
 
 

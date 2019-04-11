@@ -2,7 +2,7 @@ import gameHandle as gg
 import numpy as np
 from collections import deque
 from keras.models import Sequential, load_model
-from keras.layers import Dense, Conv2D, Flatten
+from keras.layers import Dense, Conv2D, Flatten, MaxPooling2D
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
 from keras import backend as K
@@ -13,14 +13,14 @@ import copy
 
 
 GAMMA = 0.9
-LEARNING_RATE = 0.00025
+LEARNING_RATE = 0.0001
 
 
 MEMORY_SIZE = 40000
 BATCH_SIZE = 32
 
 EXPLORATION_MAX = 1.0
-EXPLORATION_MIN = 0.1
+EXPLORATION_MIN = 0.01
 EXPLORATION_DECAY = 0.9999
 
 def huber_loss(a, b, in_keras=True):
@@ -34,7 +34,7 @@ def huber_loss(a, b, in_keras=True):
     return use_linear_term * linear_term + (1-use_linear_term) * quadratic_term
 
 class DQN:
-    def __init__(self, action_space, shape, loadedModel=None, memory=None):
+    def __init__(self, action_space, shape, loadedModel=None, memory=None, history=None):
         self.exploration_rate = EXPLORATION_MAX
 
         self.action_space = action_space
@@ -54,16 +54,19 @@ class DQN:
         huber_loss = self.huber_loss
         if loadedModel==None:
             self.model = Sequential()
-            self.model.add(Conv2D(64, 8, strides=2, input_shape=(shape, shape, 1), activation="relu", padding="same"))
-            self.model.add(Conv2D(128, 4, strides=2, activation="relu", padding="same"))
-            self.model.add(Conv2D(128, 4, strides=2, activation="relu", padding="same"))
-            self.model.add(Conv2D(256, 3, strides=2, activation="relu", padding="same"))
+            self.model.add(Conv2D(256, 3, strides=1, input_shape=(shape, shape, 1), activation="relu", padding="same"))
+            # self.model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding="same"))
+            self.model.add(Conv2D(128, 3, strides=1, activation="relu", padding="same"))
+            self.model.add(Conv2D(128, 3, strides=1, activation="relu", padding="same"))
+            self.model.add(Conv2D(64, 3, strides=1, activation="relu", padding="same"))
+            self.model.add(Conv2D(32, 3, strides=1, activation="relu", padding="same"))
             self.model.add(Flatten())
-            self.model.add(Dense(512, activation='relu'))
+            self.model.add(Dense(64, activation='relu'))
             self.model.add(Dense(self.action_space, activation='linear'))
             self.model.compile(loss='mse', optimizer=Adam(lr=LEARNING_RATE), metrics=["accuracy"])
         else:
             self.memory = memory
+            self.history = history
             self.exploration_rate = 0.1
             self.model = loadedModel
         
@@ -130,19 +133,20 @@ class DQN:
         self.exploration_rate = max(EXPLORATION_MIN, self.exploration_rate)
 
 
-def trainMaze(loadedModel=None, memory=None):
+def trainMaze(loadedModel=None, memory=None, history=None):
     size = 12
 
     env = gg.Handler(size)
     action_space = 4
+    run = 0
 
     if load_model==None:
         dqn_solver = DQN(action_space, size*2)
     else:
-        dqn_solver = DQN(action_space, size*2, loadedModel, memory)
+        run = len(history["acc"])
+        dqn_solver = DQN(action_space, size*2, loadedModel, memory, history)
 
-    # env.render()
-    run = 0
+    env.render()
     while True:
         run += 1
         state = env.reset()
@@ -159,7 +163,7 @@ def trainMaze(loadedModel=None, memory=None):
                 dqn_solver.history["acc"].append(env.correctMoves/env.totalMoves)
                 dqn_solver.history["score"].append(step)
                 dqn_solver.history["moves"].append(env.game.moveCounter)
-                print("Run: " + str(run) + ", exploration: " + str(dqn_solver.exploration_rate) + ", score: " + str(step) + ", accuracy: " + str(env.correctMoves/env.totalMoves))
+                print("Run: " + str(run) + ", exploration: " + str(dqn_solver.exploration_rate) + ", score: " + str(step) + ", accuracy: " + str(env.correctMoves/env.totalMoves) +", final accuracy: " + str(env.game.minMoves)+"/"+str(env.totalMoves))
 
             dqn_solver.experience_replay()
 
@@ -168,7 +172,7 @@ def trainMaze(loadedModel=None, memory=None):
             dqn_solver.model.save('my_model.h5')
 
 def playGame(games):
-    model = load_model('my_model.h5', custom_objects={'huber_loss': huber_loss})
+    model = load_model('my_model.h5')
     env = gg.Handler(12)
     env.render()
 
@@ -179,6 +183,7 @@ def playGame(games):
         state=env.reset()
         terminal = False
         while not terminal:
+            time.sleep(0.2)
             move = np.argmax(model.predict(state))
             state, _, terminal = env.step(move)
         accuracy += env.correctMoves/env.totalMoves
@@ -192,7 +197,13 @@ if __name__ == "__main__":
     # f = open('memory.pckl', 'rb')
     # memory = (pickle.load(f))
     # f.close()
-    # model = load_model('my_model.h5', custom_objects={'huber_loss': huber_loss})
-    # trainMaze(model, memory)
-    trainMaze()
-    # playGame(1000)
+    # f1 = open('history.pckl', 'rb')
+    # history = pickle.load(f1)
+    # f1.close()
+    # model = load_model('my_model.h5')
+    # model.summary()
+
+    # trainMaze(model, memory, history)
+    
+    # trainMaze()
+    playGame(100)

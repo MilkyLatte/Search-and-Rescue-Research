@@ -4,13 +4,14 @@ import time
 import pandas as pd
 import copy
 import json
+from ortools.constraint_solver import pywrapcp
 
 WALL = 0
 COIN = 1
 OBJECTIVE = 0.8
 AGENT = 0.5
 SPACE = 0.6
-TRAIL = 0.3
+TRAIL = 0.4
 
 def checkerPathern(gridSize):
     grid = [[0 for row in range(gridSize)] for col in range(gridSize)]
@@ -102,8 +103,10 @@ class Game():
                     grid[row][col] = WALL
 
         self.map = Grid(apX, apY, grid, 1, gridSize, [(apX, apY)])
+        _, self.minMoves = brute_force(self.map)
 
-    def mazeLevelOne(self, gridSize):
+
+    def mazeLevelOne(self, gridSize, objNum):
         grid = [[0 for row in range(gridSize)] for col in range(gridSize)]
         visited = Stack()
         pos = (np.random.randint(0, gridSize), np.random.randint(0, gridSize))
@@ -165,17 +168,28 @@ class Game():
             if grid[apX][apY] != WALL:
                 break
         grid[apX][apY] = AGENT
+
         maxObjectives = 0
-        for i in range(gridSize):
-            for j in range(gridSize):
-                if (i != apX and j != apY and grid[i][j] != WALL):
-                    objective = np.random.randint(0, 30)
-                    if objective == 1:
-                        if grid[i][j] == WALL:
-                            continue
-                        grid[i][j] = COIN
-                        maxObjectives += 1
+        for i in range(objNum):
+            while 1:
+                x = np.random.randint(0, gridSize-1)
+                y = np.random.randint(0, gridSize-1)
+                if x != apX and y != apY and grid[x][y] != WALL:
+                    grid[x][y] = COIN
+                    maxObjectives += 1
+                    break
+
+        # for i in range(gridSize):
+        #     for j in range(gridSize):
+        #         if (i != apX and j != apY and grid[i][j] != WALL):
+        #             objective = np.random.randint(0, 30)
+        #             if objective == 1:
+        #                 if grid[i][j] == WALL:
+        #                     continue
+        #                 grid[i][j] = COIN
         self.map = Grid(apX, apY, grid, maxObjectives, gridSize, [(apX, apY)])
+        _, self.minMoves = brute_force(self.map)
+
 
     def createGrid(self, gridSize, objNum):
         grid = [[SPACE for row in range(gridSize)] for col in range(gridSize)]
@@ -188,7 +202,7 @@ class Game():
             for j in range(gridSize):
                 if (i != apX and j != apY):
                     # CHANGE THIS TO GENERATE MAPS WITH MORE WALLS
-                    randomMap = np.random.randint(0, 3)
+                    randomMap = np.random.randint(0, 100)
                     if randomMap == 1:
                         grid[i][j] = WALL
         for i in range(0):
@@ -208,6 +222,8 @@ class Game():
                 if col == 0 or col == gridSize-1:
                     grid[row][col] = WALL
         self.map = Grid(apX, apY, grid, maxObjectives, gridSize, [(apX, apY)])
+        _, self.minMoves = brute_force(self.map)
+
 
     def loadGrid(self, grid):
         apX, apY, opX, opY, maxObjectives = 0, 0, 0, 0, 0
@@ -223,7 +239,8 @@ class Game():
 
     def appendToTrail(self):
         self.map.grid[self.map.trail[len(self.map.trail)-1][0]][self.map.trail[len(self.map.trail)-1][1]] = SPACE
-        if len(self.map.trail) == 5:
+        # Change this value to use longer trails
+        if len(self.map.trail) == 4:
             self.map.trail.pop(len(self.map.trail)-1)
             self.map.trail.insert(0, (self.map.apX, self.map.apY))
         else:
@@ -416,6 +433,101 @@ class Stack:
     def pop(self):
         return self.stack.pop(0)
 
+from itertools import permutations
+
+def brute_force(map):
+    objectives = map.getObjectives()
+    if len(objectives) == 0:
+        return None, None
+    objectives.insert(0, (map.apX, map.apY))
+    distance_matrix = [[0 for col in range(len(objectives))] for row in range(len(objectives))]
+    
+    index_name = [(i) for i in range(1, len(objectives))]
+    for i in range(len(objectives)):
+        for j in range(i, (len(objectives))):
+            if i == j:
+                continue
+            else:
+                dist, s = minDist(map.grid, objectives[i][0], objectives[i][1], objectives[j][0], objectives[j][1], map.size)
+                distance_matrix[j][i] = dist
+                distance_matrix[i][j] = dist
+    
+    perms= list(permutations(index_name, len(index_name)))
+    winning_perm = []
+    distance = 1000
+    #pre = time.time()
+    for perm in perms:
+        d_counter = distance_matrix[0][perm[0]]
+        current = perm[0]
+        for node in perm:
+            if node == current:
+                continue
+            d_counter += distance_matrix[current][node]
+            if d_counter > distance:
+                break
+            current = node
+        if d_counter < distance:
+            distance = d_counter
+            winning_perm = perm
+    
+   # pos = time.time()
+   # print(pos-pre)  
+
+    return objectives[winning_perm[0]], distance
+
+
+            
+
+
+    
+def tsp_solver(map):
+    objectives = map.getObjectives()
+    objectives.insert(0, (map.apX, map.apY))
+    distance_matrix = [[0 for col in range(len(objectives))] for row in range(len(objectives))]
+    
+    index_name = [str(i) for i in range(len(objectives))]
+    for i in range(len(objectives)):
+        for j in range(i, (len(objectives))):
+            if i == j:
+                continue
+            else:
+                dist, s = minDist(map.grid, objectives[i][0], objectives[i][1], objectives[j][0], objectives[j][1], map.size)
+                distance_matrix[j][i] = dist
+                distance_matrix[i][j] = dist
+    # index_name.append("dummy")
+
+    tsp_size = len(index_name)
+    num_routes = 1
+    depot = 0
+    move = None
+    if tsp_size > 0:
+        routing = pywrapcp.RoutingModel(tsp_size, num_routes, depot)
+        search_parameters = pywrapcp.RoutingModel.DefaultSearchParameters()
+        dist_callback = create_distance_callback(distance_matrix)
+        routing.SetArcCostEvaluatorOfAllVehicles(dist_callback)
+    
+        assignment = routing.SolveWithParameters(search_parameters)
+        
+        if assignment:
+            route_number = 0
+            index = routing.Start(route_number)
+            index = assignment.Value(routing.NextVar(index))
+            next_move = routing.IndexToNode(index)
+
+            if index_name[next_move] == 'dummy':
+                index = assignment.Value(routing.NextVar(index))
+                next_move = routing.IndexToNode(index)
+                
+            move = objectives[next_move]
+
+    return move
+
+def create_distance_callback(dist_matrix):
+    def distance_callback(from_node, to_node):
+        return int(dist_matrix[from_node][to_node])
+    return distance_callback
+
+    # distance_matrix = Game.
 
 def minDist(grid, sourceX, sourceY, targetX, targetY, x):
     source = Node(sourceX, sourceY, 0, -1, -1)
@@ -524,7 +636,7 @@ def closestObjective(map):
     return closest
 
 def closestMoves(map):
-    closest = closestObjective(map)
+    closest, _ = brute_force(map)
     if closest == None:
         return []
     distance, s = minDist(map.grid, map.apX, map.apY, closest[0], closest[1], map.size)
