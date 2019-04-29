@@ -22,7 +22,7 @@ class Handler():
         self.correctMoves = 0
         while 1:
             self.game = fg.Game()
-            self.game.mazeLevelOne(self.shape, 7)
+            self.game.testMaze(self.shape, 11)
             self.paddedMap = self.game.map.getCentricPosition()
             if fg.isValidMap(self.game.map):
                 break
@@ -34,7 +34,7 @@ class Handler():
 
     def render(self):
         self.graphics = True
-        self.graphicsHandler = fg.Graphics(15, self.paddedMap)
+        self.graphicsHandler = fg.Graphics(35, self.paddedMap)
         self.graphicsHandler.createBoard()
         self.graphicsHandler.board.pack()
         self.graphicsHandler.master.update()
@@ -45,8 +45,22 @@ class Handler():
         self.graphicsHandler.board.pack()
         self.graphicsHandler.master.update()
 
+    def longMove(self, move):
+        self.game.makeMove(move)
+        self.paddedMap = self.game.map.getCentricPosition()
+        if self.graphics:
+            self.graphicsUpdate()
+
+        self.totalMoves += 1
+        if (self.game.objectiveCounter == self.game.map.maxObjectives):
+            return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), True
+        else:
+            return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), False
+
+
+        
     def step(self, move):
-        preMove = fg.closestMoves(self.game.map)
+        _, preMove = fg.brute_force(self.game.map)
         preMoveObjectives = self.game.objectiveCounter
         previous = self.game.makeMove(move)
         self.moveEpisode += 1
@@ -58,18 +72,18 @@ class Handler():
         if self.graphics:
             self.graphicsUpdate()
 
-        postMove = fg.closestMoves(self.game.map)
+        _, postMove = fg.brute_force(self.game.map)
         postMoveObjectives = self.game.objectiveCounter
 
 
-        if len(postMove) == 0:
+        if (postMove) == 0:
             self.correctMoves += 1
             return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), 1, True
 
-        if (self.moveEpisode > 50):
+        if (self.moveEpisode > 70):
             return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), 0, True
 
-        if len(preMove) == len(postMove):
+        if (preMove) == (postMove):
             return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), -1, False
 
         if (postMoveObjectives > preMoveObjectives):
@@ -77,31 +91,31 @@ class Handler():
             self.moveEpisode = 0
             return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), 1, False
 
+        if (preMove) > (postMove):
+            self.correctMoves += 1
+            return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), 1/(postMove), False
+
         if previous:
             return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), -0.5, False
 
-        if (len(preMove) < len(postMove)):
-            return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), -1/len(preMove), False
+        if ((preMove) < (postMove)):
+            return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), -1/(preMove), False
 
-        if len(preMove) > len(postMove):
-            self.correctMoves += 1
-            return np.array(self.paddedMap.grid).reshape(-1, len(self.paddedMap.grid), len(self.paddedMap.grid), 1), 1/len(postMove), False
 
-#
 # done = False
 # game = Handler(12)
 # game.render()
-# moves = fg.closestMoves(game.game.map)
-#
-#
+
+# predictionTime = 0
+# games = 0
+
 # while 1:
-#     while 1:
-#         pass
-#     if game.game.map.grid[game.game.map.apX][game.game.map.apY] != 0.5:
-#         print("HELP!")
-#         while 1:
-#             pass
+#     game.reset()
+#     games += 1
+#     before = time.time()
 #     moves = fg.closestMoves(game.game.map)
-#     time.sleep(0.05)
-#     _, reward, done = game.step(moves.pop(0))
-#     print("REWARD: {}".format(reward))
+#     predictionTime += time.time() - before
+#     while(len(moves) > 0):
+#         _, done = game.longMove(moves.pop(0))
+#     print("Avg Time Taken after {} games: {}".format(games, predictionTime/games))
+

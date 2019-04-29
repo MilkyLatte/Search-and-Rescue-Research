@@ -78,19 +78,26 @@ class Game():
         self.moveCounter = 0
         self.objectiveCounter = 0
         self.map = []
+        self.testMaps = self.loadTestMaps()
+
+    def loadTestMaps(self):
+        with open('Test.json', 'r') as f:
+            a = json.load(f)
+        return copy.deepcopy(a)
 
     def testMaze(self, gridSize, objNum):
         grid = [[SPACE for row in range(gridSize)] for col in range(gridSize)]
         v = 1
         apX = np.random.randint(v, gridSize-(v+1))
         apY = np.random.randint(v, gridSize-(v+1))
-
+        maxObjectives = 0
         for i in range(objNum):
             while 1:
                 x = np.random.randint(v, gridSize-(v+1))
                 y = np.random.randint(v, gridSize-(v+1))
-                if x != apX and y != apY:
+                if x != apX and y != apY and grid[x][y] != COIN:
                     grid[x][y] = COIN
+                    maxObjectives += 1
                     break
 
         grid[apX][apY] = AGENT
@@ -102,7 +109,7 @@ class Game():
                 if col <= v-1 or col >= gridSize-v:
                     grid[row][col] = WALL
 
-        self.map = Grid(apX, apY, grid, 1, gridSize, [(apX, apY)])
+        self.map = Grid(apX, apY, grid, maxObjectives, gridSize, [(apX, apY)])
         _, self.minMoves = brute_force(self.map)
 
 
@@ -202,7 +209,7 @@ class Game():
             for j in range(gridSize):
                 if (i != apX and j != apY):
                     # CHANGE THIS TO GENERATE MAPS WITH MORE WALLS
-                    randomMap = np.random.randint(0, 100)
+                    randomMap = np.random.randint(0, 10)
                     if randomMap == 1:
                         grid[i][j] = WALL
         for i in range(0):
@@ -211,7 +218,7 @@ class Game():
             while 1:
                 x = np.random.randint(1, gridSize-1)
                 y = np.random.randint(1, gridSize-1)
-                if x != apX and y != apY:
+                if x != apX and y != apY and grid[x][y] != WALL:
                     grid[x][y] = COIN
                     maxObjectives += 1
                     break
@@ -226,7 +233,7 @@ class Game():
 
 
     def loadGrid(self, grid):
-        apX, apY, opX, opY, maxObjectives = 0, 0, 0, 0, 0
+        apX, apY, maxObjectives = 0, 0, 0
         for row in range(len(grid)):
             for col in range(len(grid)):
                 if grid[row][col] == AGENT:
@@ -235,6 +242,7 @@ class Game():
                 elif grid[row][col] == COIN:
                     maxObjectives += 1
         self.map = Grid(apX, apY, grid, maxObjectives, len(grid), [(apX, apY)])
+        _, self.minMoves = brute_force(self.map)
 
 
     def appendToTrail(self):
@@ -438,7 +446,7 @@ from itertools import permutations
 def brute_force(map):
     objectives = map.getObjectives()
     if len(objectives) == 0:
-        return None, None
+        return None, 0
     objectives.insert(0, (map.apX, map.apY))
     distance_matrix = [[0 for col in range(len(objectives))] for row in range(len(objectives))]
     
@@ -654,12 +662,12 @@ def loadMaps():
     return copy.deepcopy(a)
 
 def writeMaps(maps):
-    with open('Supervised/maps1.json', 'w') as f:
+    with open('Train.json', 'w') as f:
         a = json.dump(maps, f, separators=(',', ': '), indent=4)
 
 def reshape(grid):
     newGrid = np.array(grid)
-    newGrid = newGrid.reshape(1600)
+    newGrid = newGrid.reshape(576)
     return np.ndarray.tolist(newGrid)
 
 def isValidMap(map):
@@ -670,11 +678,12 @@ def isValidMap(map):
                 return False
         except Exception:
             return False
-            printMap(map.grid)
     return True
 
 
-def generateMaps(mapNum):
+
+
+def generateMaps(mapNum, mapType):
     maps = {
         "maps": [],
         "moves": []
@@ -682,7 +691,43 @@ def generateMaps(mapNum):
     gameCounter = 0
     while gameCounter < mapNum:
         game = Game()
-        game.testMaze(20, 12)
+        if mapType == 0:
+            game.testMaze(12, 1)
+            equalMap = False
+            for i in game.testMaps["short"]:
+                if np.array_equal(np.array(i).reshape(12,12), game.map.grid):
+                    equalMap = True
+                    print("REPEATED")
+                    break
+            if equalMap:
+                continue
+        if mapType == 1:
+            game.testMaze(12, 7)
+            equalMap = False
+            for i in game.testMaps["tsp"]:
+                if np.array_equal(np.array(i).reshape(12,12), game.map.grid):
+                    equalMap = True
+                    break
+            if equalMap:
+                continue
+        if mapType == 2:
+            game.createGrid(12, 7)
+            equalMap = False
+            for i in game.testMaps["saltpepper"]:
+                if np.array_equal(np.array(i).reshape(12,12), game.map.grid):
+                    equalMap = True
+                    break
+            if equalMap:
+                continue
+        if mapType == 3:
+            game.mazeLevelOne(12, 7)
+            equalMap = False
+            for i in game.testMaps["maze"]:
+                if np.array_equal(np.array(i).reshape(12,12), game.map.grid):
+                    equalMap = True
+                    break
+            if equalMap:
+                continue
         if not isValidMap(game.map):
             continue
         while len(game.map.getObjectives()) > 0:
@@ -702,40 +747,46 @@ def generateMaps(mapNum):
     writeMaps(maps)
     return maps
 
+def generateTestMaps(mapNum):
+    maps = {
+        "short": [],
+        "tsp": [],
+        "saltpepper":[],
+        "maze": []
+        }
+    gameCounter = 0
+    for i in range(4):
+        while gameCounter < mapNum:
+            game = Game()
+            if i == 0:
+                game.testMaze(12, 1)
+                if not isValidMap(game.map):
+                    continue
+                maps["short"].append(list(reshape(game.map.grid)))
+            if i == 1:
+                game.testMaze(12, 7)
+                if not isValidMap(game.map):
+                    continue
+                maps["tsp"].append(list(reshape(game.map.grid)))
+            if i == 2:
+                game.mazeLevelOne(12, 7)
+                if not isValidMap(game.map):
+                    continue
+                maps["saltpepper"].append(list(reshape(game.map.grid)))
+            if i == 3:
+                game.createGrid(12, 7)
+                if not isValidMap(game.map):
+                    continue
+                maps["maze"].append(list(reshape(game.map.grid)))
+            gameCounter += 1
+        gameCounter = 0
+    writeMaps(maps)
+    return maps
+    
 
 def main():
-    # newGame = Game()
-    # newGame.mazeLevelOne(20)
-    #
-    # graphics = Graphics(20, newGame.map)
-    # graphics.createBoard()
-    #
-    # while 1:
-    #     graphics.board.pack()
-    #     graphics.updateBoard()
-    #     graphics.master.update()
-
-    maps = generateMaps(1000)
-    newGame = Game()
-    newGame.loadGrid(np.array(maps["maps"][0]).reshape(20,20))
-
-    # newGame = Game()
-    # newGame.createGrid(20)
-
-    graphicsHandler = Graphics(25, newGame.map)
-    graphicsHandler.createBoard()
-    printMap(newGame.map.grid)
-    #
-    #
-    while 1:
-        graphicsHandler.board.pack()
-        for i in closestMoves(newGame.map):
-            newGame.makeMove(i)
-            graphicsHandler.updateBoard()
-            graphicsHandler.master.update()
-            time.sleep(0.3)
-        if (newGame.map.opX == newGame.map.apX and newGame.map.opY == newGame.map.apY):
-            break
+    # generateTestMaps(100)
+    generateMaps(5000, 0)
 
 
 

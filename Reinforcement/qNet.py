@@ -1,5 +1,6 @@
 import gameHandle as gg
 import numpy as np
+import test
 from collections import deque
 from keras.models import Sequential, load_model
 from keras.layers import Dense, Conv2D, Flatten, MaxPooling2D
@@ -20,7 +21,7 @@ MEMORY_SIZE = 40000
 BATCH_SIZE = 32
 
 EXPLORATION_MAX = 1.0
-EXPLORATION_MIN = 0.01
+EXPLORATION_MIN = 0.05
 EXPLORATION_DECAY = 0.9999
 
 def huber_loss(a, b, in_keras=True):
@@ -65,9 +66,10 @@ class DQN:
             self.model.add(Dense(self.action_space, activation='linear'))
             self.model.compile(loss='mse', optimizer=Adam(lr=LEARNING_RATE), metrics=["accuracy"])
         else:
+            print("HERE")
             self.memory = memory
             self.history = history
-            self.exploration_rate = 0.1
+            self.exploration_rate = 0.05
             self.model = loadedModel
         
         self.modelCopy = self.copy_model(self.model)
@@ -136,11 +138,11 @@ class DQN:
 def trainMaze(loadedModel=None, memory=None, history=None):
     size = 12
 
-    env = gg.Handler(size)
+    env = gg.Handler(size, 2)
     action_space = 4
     run = 0
 
-    if load_model==None:
+    if load_model is  None:
         dqn_solver = DQN(action_space, size*2)
     else:
         run = len(history["acc"])
@@ -149,7 +151,7 @@ def trainMaze(loadedModel=None, memory=None, history=None):
     env.render()
     while True:
         run += 1
-        state = env.reset()
+        state = env.reset(2)
         step = 0
         terminal = False
         while not terminal:
@@ -171,39 +173,87 @@ def trainMaze(loadedModel=None, memory=None, history=None):
             print(len(dqn_solver.memory))
             dqn_solver.model.save('my_model.h5')
 
-def playGame(games):
-    model = load_model('my_model.h5')
-    env = gg.Handler(12)
+
+def testGame():
+    model = load_model('./finalModels/models/TSP.h5')
+    env = test.Test(12, 1)
     env.render()
-
     accuracy = 0
+    moves = 0
+    avgtime = 0
+    avgtimePerGame = 0
+    games = 0
+    variance = 0
+    accMean = []
 
-
-    for _ in range(games):
-        state=env.reset()
+    for _ in range(len(env.game.testMaps["maze"]) - 1):
+        state=env.nextGame(1)
         terminal = False
+        before = time.time()
+
         while not terminal:
-            time.sleep(0.2)
+            # time.sleep(0.1)
+            pre = time.time()
             move = np.argmax(model.predict(state))
+            if np.random.rand() < 0.05:
+                move = np.random.randint(0, 4)
+            avgtime += abs(time.time() - pre)
+            moves += 1
             state, _, terminal = env.step(move)
         accuracy += env.correctMoves/env.totalMoves
-        print("Accuracy: " + str(env.correctMoves/env.totalMoves))
+        accMean.append(env.correctMoves/env.totalMoves)
+        games += 1
+        avgtimePerGame += abs(time.time() - before)
+        variance += abs(env.game.minMoves - env.totalMoves)
+    print("Time Average per move: {} seconds".format(avgtime/moves))
+    print("Time Average per game: {} seconds".format(avgtimePerGame/games))
+    print("Accuracy after {} games = {}, Average Move Variance = {} ".format(games, accuracy/(games), variance/games))
+    print("AVERAGE ACCURACY: {}".format(np.mean(np.array(accMean))))
+    print("VARIANCE: {}".format(np.var(np.array(accMean))))
 
-    print("Accuracy after {} games = {}".format(games, accuracy/games))
 
+def playGame(games):
+    model = load_model('./finalModels/models/TSP.h5')
+    model.summary()
+    game = gg.Handler(12, 1)
+    game.render()
+    
 
+    timeTaken = 0
+    variance = 0
+    accuracy = 0
+    accMean = []
+    
+
+    for _ in range(games):
+        terminal = False
+        state = game.reset(1)
+        before = time.time()
+        while not terminal:
+            # time.sleep(1)
+            move = np.argmax(model.predict(state))
+            state,  terminal = game.longMove(move)
+        timeTaken += time.time() - before
+        variance += game.totalMoves - game.game.minMoves
+        accuracy += game.correctMoves/game.totalMoves 
+        accMean.append(game.correctMoves/game.totalMoves)
+    print("AVERAGE TIME TAKEN: {}".format(timeTaken/games))
+    print("AVERAGE VARIANCE: {}".format(variance/games))
+    print("AVERAGE ACCURACY: {}".format(np.mean(np.array(accMean))))
+    print("VARIANCE: {}".format(np.var(np.array(accMean))))
 
 if __name__ == "__main__":
-    # f = open('memory.pckl', 'rb')
+    # f = open('./finalModels/memory/SaltPepperMem.pckl', 'rb')
     # memory = (pickle.load(f))
     # f.close()
-    # f1 = open('history.pckl', 'rb')
+    # f1 = open('./finalModels/history/SaltPepperHist.pckl', 'rb')
     # history = pickle.load(f1)
     # f1.close()
-    # model = load_model('my_model.h5')
+    # model = load_model('./finalModels/models/SaltPepperModel.h5')
     # model.summary()
 
     # trainMaze(model, memory, history)
     
     # trainMaze()
-    playGame(100)
+    testGame()
+    # playGame(10)
